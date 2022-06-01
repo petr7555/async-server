@@ -67,4 +67,4 @@ class WorkerPool extends EventEmitter {
     }
 }
 
-module.exports = WorkerPool
+module.exports = WorkerPool;
