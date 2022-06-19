@@ -1,0 +1,14 @@
+config:
+  target: "http://localhost:3000/"
+  phases:
+    - duration: 5
+      arrivalRate: 10
+      name: Sustained load
+
+scenarios:
+  - name: "Test"
+    flow:
+      - get:
+          url: "/"
+          qs:
+            value: 8

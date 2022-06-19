@@ -1,8 +1,9 @@
-const path = require("path");
-const {Worker} = require('worker_threads');
-const {AsyncResource} = require('async_hooks')
-const {EventEmitter} = require('events');
+const { Worker } = require('worker_threads');
+const { AsyncResource } = require('async_hooks')
+const { EventEmitter } = require('events');
 
+// symbols are unique (not equal) even if their description is the same
+// this makes them suitable as object keys
 const taskInfo = Symbol('taskInfo');
 const workerFreedEvent = Symbol('workerFreedEvent');
 
@@ -20,9 +21,10 @@ class WorkerPoolTask extends AsyncResource {
 
 
 class WorkerPool extends EventEmitter {
-    constructor(numThreads, workerFile) {
+    constructor(numThreads, workerFileAbsPath) {
         super();
-        this.workerFile = workerFile;
+        this.workerFileAbsPath = workerFileAbsPath;
+        // to keep track of workers to close at the end 
         this.workers = [];
         this.freeWorkers = [];
         for (let i = 0; i < numThreads; i++) {
@@ -31,13 +33,14 @@ class WorkerPool extends EventEmitter {
     }
 
     addWorker() {
-        const worker = new Worker(path.resolve(this.workerFile));
+        const worker = new Worker(this.workerFileAbsPath);
         worker.on('error', (err) => {
             if (worker[taskInfo]) {
                 worker[taskInfo].done(err, null);
             } else {
                 this.emit('error', err)
             }
+            // delete the worker that failed from the workers array
             this.workers.splice(this.workers.indexOf(worker), 1);
             this.addWorker();
         });
@@ -54,7 +57,8 @@ class WorkerPool extends EventEmitter {
 
     runTask(task, callback) {
         if (this.freeWorkers.length === 0) {
-            this.once(workerFreedEvent, this.runTask(task, callback));
+            // wait for workerFreedEvent to be emitted, then run this function again
+            this.once(workerFreedEvent, () => this.runTask(task, callback));
             return;
         }
         const worker = this.freeWorkers.pop();
